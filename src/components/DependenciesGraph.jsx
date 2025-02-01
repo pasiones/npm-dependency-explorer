@@ -36,10 +36,10 @@ const DependenciesGraph = () => {
 
         processDependencies(dependencies);
 
-        // Adjust size for leaf nodes
+        // Adjust size for root nodes
         nodes.forEach(node => {
           if (dependencyCount[node.id] === 0) {
-            node.size = 400; // Make leaf nodes larger
+            node.size = 500; 
             node.color = 'lightgreen';
           }
         });
@@ -61,13 +61,17 @@ const DependenciesGraph = () => {
     setHighlightedNodes([]);
   };
 
+  const onClickNode = (nodeId) => {
+    window.alert(`Clicked node ${nodeId}`);
+  };
+
   const myConfig = {
-    nodeHighlightBehavior: true,
     node: {
       highlightStrokeColor: 'blue',
-      fontColor: 'white', // Set font color to white
+      fontColor: 'white', 
     },
     link: {
+      color: 'gray',
       renderLabel: true,
       strokeWidth: 2,
     },
@@ -84,22 +88,22 @@ const DependenciesGraph = () => {
           nodes: graphData.nodes.map(node => ({
             ...node,
             color: highlightedNodes.includes(node.id) ? 'red' : node.color,
-            highlightStrokeColor: highlightedNodes.includes(node.id) ? 'red' : 'blue',
+            highlightStrokeColor: highlightedNodes.includes(node.id) ? 'red' : node.highlightStrokeColor,
             fontSize: highlightedNodes.includes(node.id) ? 13 : node.fontSize,
-            fontWeight: highlightedNodes.includes(node.id) ? 'bold' : 'normal', // Set font weight
-            opacity: highlightedNodes.length > 0 && !highlightedNodes.includes(node.id) ? 0.2 : 1, // Set opacity
+            fontWeight: highlightedNodes.includes(node.id) ? 'bold' : node.fontWeight, 
+            opacity: highlightedNodes.length > 0 && !highlightedNodes.includes(node.id) ? 0.2 : node.opacity, 
           })),
           links: graphData.links.map(link => ({
             ...link,
-            color: highlightedLinks.includes(link) ? 'red' : 'gray',
+            color: highlightedLinks.includes(link) ? 'red' : link.color,
             strokeWidth: highlightedLinks.includes(link) ? 4 : link.strokeWidth,
-            opacity: highlightedLinks.length > 0 && !highlightedLinks.includes(link) ? 0.2 : 1, // Set opacity
+            opacity: highlightedLinks.length > 0 && !highlightedLinks.includes(link) ? 0.2 : link.opacity, 
           })),
         }}
         config={myConfig}
         onMouseOverNode={onMouseOverNode}
         onMouseOutNode={onMouseOutNode}
-        nodeSizeKey="size" // Use the custom size property
+        onClickNode={onClickNode}
       />
     </div>
   );
