@@ -39,14 +39,11 @@ body {
 }
 
 @media (prefers-color-scheme: light) {
-  :root {
+  body {
     color: #213547;
-    background-color: #ffffff;
+    background-color: #ffffff ;
   }
   a:hover {
     color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
   }
 }

@@ -99,8 +99,14 @@ const DependencyGraph = () => {
           .enter().append('text')
           .attr('x', 12)
           .attr('y', 3)
-          .attr('fill', 'white')
           .text(d => d.id);
+
+        // Detect the current color scheme
+        const isLightMode = window.matchMedia('(prefers-color-scheme: light)').matches;
+        const fontColor = isLightMode ? '#242424' : '#ffffff';
+
+        // Apply the font color to the text elements
+        d3.selectAll('text').attr('fill', fontColor);
 
         // Update the simulation on each tick
         simulation.on('tick', () => {
