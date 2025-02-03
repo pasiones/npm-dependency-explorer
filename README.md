@@ -11,6 +11,7 @@ The npm Package Dependency Explorer is a graphical tool designed to help develop
 - Interactive graph with zoom and pan capabilities
 - Search functionality to find specific packages
 - Detailed information on each package and its dependencies
+- Filter selected package on the graph
 
 ## Installation
 

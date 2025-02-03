@@ -1,112 +1,154 @@
-// src/components/DependenciesGraph.jsx
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import { Graph } from 'react-d3-graph';
+import React, { useEffect } from 'react';
+import * as d3 from 'd3';
 
-const DependenciesGraph = () => {
-  const [graphData, setGraphData] = useState({ nodes: [], links: [] });
-  const [highlightedNodes, setHighlightedNodes] = useState([]);
-  const [highlightedLinks, setHighlightedLinks] = useState([]);
+// Function to read the JSON file
+async function readJsonFile(filePath) {
+  const response = await fetch(filePath);
+  if (!response.ok) {
+    throw new Error('Network response was not ok');
+  }
+  return response.json();
+}
 
+// Function to create nodes and links from dependencies
+function createNodesAndLinks(data) {
+  const nodes = new Map();
+  const links = [];
+
+  // Add the main project as a node
+  nodes.set(data.name, { id: data.name });
+
+  // Add dependencies as nodes and links
+  for (const [dep, details] of Object.entries(data.dependencies)) {
+    nodes.set(dep, { id: dep });
+    links.push({ source: data.name, target: dep });
+
+    // Add sub-dependencies as nodes and links
+    if (details.dependencies) {
+      for (const subDep of Object.keys(details.dependencies)) {
+        nodes.set(subDep, { id: subDep });
+        links.push({ source: dep, target: subDep });
+      }
+    }
+  }
+
+  return { nodes: Array.from(nodes.values()), links };
+}
+
+
+const DependencyGraph = () => {
   useEffect(() => {
-    axios.get('/dependencies.json')
-      .then(response => {
-        const dependencies = response.data.dependencies;
-        const nodes = [];
-        const links = [];
-        const dependencyCount = {};
+    async function createGraph() {
+      try {
+        const data = await readJsonFile('./dependencies.json');
+        const { nodes, links } = createNodesAndLinks(data);
 
-        const processDependencies = (deps, parent = null) => {
-          Object.keys(deps).forEach(dep => {
-            if (!dependencyCount[dep]) {
-              dependencyCount[dep] = 0;
-            }
-            if (parent) {
-              dependencyCount[dep]++;
-              links.push({ source: parent, target: dep });
-            }
-            if (!nodes.find(node => node.id === dep)) {
-              nodes.push({ id: dep, size: 120, color: 'lightblue' });
-            }
-            if (deps[dep].dependencies) {
-              processDependencies(deps[dep].dependencies, dep);
-            }
-          });
-        };
+        // Create the SVG container
+        const svg = d3.select('#graph');
+        const width = +svg.attr('width');
+        const height = +svg.attr('height');
+        
+        svg.selectAll('*').remove();
 
-        processDependencies(dependencies);
+        // Define arrow markers for graph links
+        svg.append('defs').append('marker')
+          .attr('id', 'arrowhead')
+          .attr('viewBox', '-0 -5 10 10')
+          .attr('refX', 13)
+          .attr('refY', 0)
+          .attr('orient', 'auto')
+          .attr('markerWidth', 8)
+          .attr('markerHeight', 9)
+          .attr('xoverflow', 'visible')
+          .append('svg:path')
+          .attr('d', 'M 0,-5 L 10 ,0 L 0,5')
+          .attr('fill', '#999')
+          .style('stroke', 'none');
 
-        // Adjust size for root nodes
-        nodes.forEach(node => {
-          if (dependencyCount[node.id] === 0) {
-            node.size = 500; 
-            node.color = 'lightgreen';
-          }
+        // Create the simulation
+        const simulation = d3.forceSimulation(nodes)
+          .force('link', d3.forceLink(links).id(d => d.id).distance(100))
+          .force('charge', d3.forceManyBody())
+          .force('center', d3.forceCenter(window.innerWidth / 2, window.innerHeight / 2));
+
+        // Draw the links
+        const link = svg.append('g')
+          .selectAll('line')
+          .data(links)
+          .enter().append('line')
+          .attr('stroke', '#999')
+          .attr('stroke-width', 2)
+          .attr('marker-end', 'url(#arrowhead)');
+
+        // Draw the nodes
+        const node = svg.append('g')
+          .selectAll('circle')
+          .data(nodes)
+          .enter().append('circle')
+          .attr('r', 10)
+          .attr('fill', '#69b3a2')
+          .call(d3.drag()
+            .on('start', dragstarted)
+            .on('drag', dragged)
+            .on('end', dragended));
+
+        // Add labels to the nodes
+        const label = svg.append('g')
+          .selectAll('text')
+          .data(nodes)
+          .enter().append('text')
+          .attr('x', 12)
+          .attr('y', 3)
+          .attr('fill', 'white')
+          .text(d => d.id);
+
+        // Update the simulation on each tick
+        simulation.on('tick', () => {
+          link
+            .attr('x1', d => d.source.x)
+            .attr('y1', d => d.source.y)
+            .attr('x2', d => d.target.x)
+            .attr('y2', d => d.target.y);
+
+          node
+            .attr('cx', d => d.x)
+            .attr('cy', d => d.y);
+
+          label
+            .attr('x', d => d.x + 12)
+            .attr('y', d => d.y + 3);
         });
 
-        setGraphData({ nodes, links });
-      })
-      .catch(error => console.error('Error fetching dependencies:', error));
+        // Drag functions
+        function dragstarted(event, d) {
+          if (!event.active) simulation.alphaTarget(0.3).restart();
+          d.fx = d.x;
+          d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+          d.fx = event.x;
+          d.fy = event.y;
+        }
+
+        function dragended(event, d) {
+          if (!event.active) simulation.alphaTarget(0);
+          d.fx = null;
+          d.fy = null;
+        }
+      } catch (error) {
+        console.error('Error reading JSON file:', error);
+      }
+    }
+
+    createGraph();
   }, []);
-
-  const onMouseOverNode = (nodeId) => {
-    const newHighlightedLinks = graphData.links.filter(link => link.source === nodeId || link.target === nodeId);
-    const newHighlightedNodes = [nodeId, ...newHighlightedLinks.map(link => link.source === nodeId ? link.target : link.source)];
-    setHighlightedLinks(newHighlightedLinks);
-    setHighlightedNodes(newHighlightedNodes);
-  };
-
-  const onMouseOutNode = () => {
-    setHighlightedLinks([]);
-    setHighlightedNodes([]);
-  };
-
-  const onClickNode = (nodeId) => {
-    window.alert(`Clicked node ${nodeId}`);
-  };
-
-  const myConfig = {
-    node: {
-      highlightStrokeColor: 'blue',
-      fontColor: 'white', 
-    },
-    link: {
-      color: 'gray',
-      renderLabel: true,
-      strokeWidth: 2,
-    },
-    directed: true,
-    height: window.innerHeight,
-    width: window.innerWidth,
-  };
 
   return (
     <div className="graph-container">
-      <Graph
-        id="dependencies-graph"
-        data={{
-          nodes: graphData.nodes.map(node => ({
-            ...node,
-            color: highlightedNodes.includes(node.id) ? 'red' : node.color,
-            highlightStrokeColor: highlightedNodes.includes(node.id) ? 'red' : node.highlightStrokeColor,
-            fontSize: highlightedNodes.includes(node.id) ? 13 : node.fontSize,
-            fontWeight: highlightedNodes.includes(node.id) ? 'bold' : node.fontWeight, 
-            opacity: highlightedNodes.length > 0 && !highlightedNodes.includes(node.id) ? 0.2 : node.opacity, 
-          })),
-          links: graphData.links.map(link => ({
-            ...link,
-            color: highlightedLinks.includes(link) ? 'red' : link.color,
-            strokeWidth: highlightedLinks.includes(link) ? 4 : link.strokeWidth,
-            opacity: highlightedLinks.length > 0 && !highlightedLinks.includes(link) ? 0.2 : link.opacity, 
-          })),
-        }}
-        config={myConfig}
-        onMouseOverNode={onMouseOverNode}
-        onMouseOutNode={onMouseOutNode}
-        onClickNode={onClickNode}
-      />
+      <svg id="graph" width={window.innerWidth} height={window.innerHeight}></svg>
     </div>
   );
 };
 
-export default DependenciesGraph;
+export default DependencyGraph
