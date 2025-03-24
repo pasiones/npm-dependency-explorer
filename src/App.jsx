@@ -14,7 +14,7 @@ const App = () => {
       <div className="search-bar-and-list-container">
         <SearchBar value={filter} onChange={setFilter}/>
         <div className="dependency-list">
-          <DependenciesList />
+          {/* <DependenciesList /> */}
         </div>
       </div>
     </div>
