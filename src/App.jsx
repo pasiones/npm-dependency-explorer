@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import DependenciesGraph from './components/DependenciesGraph';
-import DependenciesList from './components/DependenciesList';
+// import DependenciesList from './components/DependenciesList';
 import SearchBar from './components/SearchBar';
 
 const App = () => {
