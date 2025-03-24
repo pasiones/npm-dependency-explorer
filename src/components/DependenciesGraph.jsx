@@ -36,7 +36,7 @@ function createNodesAndLinks(data) {
 }
 
 
-const DependencyGraph = () => {
+const DependencyGraph = ({ filter }) => {
   useEffect(() => {
     async function createGraph() {
       try {
@@ -67,7 +67,7 @@ const DependencyGraph = () => {
 
         // Create the simulation
         const simulation = d3.forceSimulation(nodes)
-          .force('link', d3.forceLink(links).id(d => d.id).distance(100))
+          .force('link', d3.forceLink(links).id(d => d.id).distance(200))
           .force('charge', d3.forceManyBody())
           .force('center', d3.forceCenter(window.innerWidth / 2, window.innerHeight / 2));
 
@@ -86,7 +86,7 @@ const DependencyGraph = () => {
           .data(nodes)
           .enter().append('circle')
           .attr('r', 10)
-          .attr('fill', '#69b3a2')
+          .attr('fill', d => d.id.toLowerCase().includes(filter.toLowerCase()) ? 'red' : '#69b3a2')
           .call(d3.drag()
             .on('start', dragstarted)
             .on('drag', dragged)
@@ -148,12 +148,10 @@ const DependencyGraph = () => {
     }
 
     createGraph();
-  }, []);
+  }, [filter]);
 
   return (
-    <div className="graph-container">
-      <svg id="graph" width={window.innerWidth} height={window.innerHeight}></svg>
-    </div>
+      <svg id="graph"></svg>
   );
 };
 
