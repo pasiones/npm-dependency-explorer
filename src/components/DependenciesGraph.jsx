@@ -36,7 +36,7 @@ function createNodesAndLinks(data) {
 }
 
 
-const DependencyGraph = () => {
+const DependencyGraph = ({ filter }) => {
   useEffect(() => {
     async function createGraph() {
       try {
@@ -47,7 +47,7 @@ const DependencyGraph = () => {
         const svg = d3.select('#graph');
         const width = +svg.attr('width');
         const height = +svg.attr('height');
-        
+
         svg.selectAll('*').remove();
 
         // Define arrow markers for graph links
@@ -67,7 +67,7 @@ const DependencyGraph = () => {
 
         // Create the simulation
         const simulation = d3.forceSimulation(nodes)
-          .force('link', d3.forceLink(links).id(d => d.id).distance(100))
+          .force('link', d3.forceLink(links).id(d => d.id).distance(200))
           .force('charge', d3.forceManyBody())
           .force('center', d3.forceCenter(window.innerWidth / 2, window.innerHeight / 2));
 
@@ -142,18 +142,33 @@ const DependencyGraph = () => {
           d.fx = null;
           d.fy = null;
         }
+
+        // Function to update node colors based on filter
+        function updateNodeColors() {
+          if (filter) {
+            node.attr('fill', d => d.id.toLowerCase().includes(filter.toLowerCase()) ? 'red' : '#69b3a2')
+              .attr('opacity', d => d.id.toLowerCase().includes(filter.toLowerCase()) ? 1 : 0.2);
+            label.attr('opacity', d => d.id.toLowerCase().includes(filter.toLowerCase()) ? 1 : 0.2);
+          } else {
+            node.attr('fill', '#69b3a2')
+              .attr('opacity', 1);
+            label.attr('opacity', 1);
+          }
+        }
+
+        // Call updateNodeColors initially and whenever filter changes
+        updateNodeColors();
+
       } catch (error) {
         console.error('Error reading JSON file:', error);
       }
     }
 
     createGraph();
-  }, []);
+  }, [filter]);
 
   return (
-    <div className="graph-container">
-      <svg id="graph" width={window.innerWidth} height={window.innerHeight}></svg>
-    </div>
+    <svg id="graph"></svg>
   );
 };
 
