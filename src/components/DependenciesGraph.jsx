@@ -45,13 +45,26 @@ const DependencyGraph = ({ filter }) => {
 
         // Create the SVG container
         const svg = d3.select('#graph');
-        const width = +svg.attr('width');
-        const height = +svg.attr('height');
+        const width = +svg.attr('width') || window.innerWidth;
+        const height = +svg.attr('height') || window.innerHeight;
 
         svg.selectAll('*').remove();
 
+        // Add a group element to hold the graph
+        const container = svg.append('g');
+
+        // Define zoom behavior
+        const zoom = d3.zoom()
+          .scaleExtent([0.5, 2]) // Set zoom scale limits
+          .on('zoom', (event) => {
+            container.attr('transform', event.transform);
+          });
+
+        // Apply zoom behavior to the SVG
+        svg.call(zoom);
+
         // Define arrow markers for graph links
-        svg.append('defs').append('marker')
+        container.append('defs').append('marker')
           .attr('id', 'arrowhead')
           .attr('viewBox', '-0 -5 10 10')
           .attr('refX', 13)
@@ -69,10 +82,10 @@ const DependencyGraph = ({ filter }) => {
         const simulation = d3.forceSimulation(nodes)
           .force('link', d3.forceLink(links).id(d => d.id).distance(200))
           .force('charge', d3.forceManyBody())
-          .force('center', d3.forceCenter(window.innerWidth / 2, window.innerHeight / 2));
+          .force('center', d3.forceCenter(width / 2, height / 2));
 
         // Draw the links
-        const link = svg.append('g')
+        const link = container.append('g')
           .selectAll('line')
           .data(links)
           .enter().append('line')
@@ -81,7 +94,7 @@ const DependencyGraph = ({ filter }) => {
           .attr('marker-end', 'url(#arrowhead)');
 
         // Draw the nodes
-        const node = svg.append('g')
+        const node = container.append('g')
           .selectAll('circle')
           .data(nodes)
           .enter().append('circle')
@@ -93,13 +106,14 @@ const DependencyGraph = ({ filter }) => {
             .on('end', dragended));
 
         // Add labels to the nodes
-        const label = svg.append('g')
+        const label = container.append('g')
           .selectAll('text')
           .data(nodes)
           .enter().append('text')
           .attr('x', 12)
           .attr('y', 3)
-          .text(d => d.id);
+          .text(d => d.id)
+          .attr('font-size', 12);
 
         // Detect the current color scheme
         const isLightMode = window.matchMedia('(prefers-color-scheme: light)').matches;
