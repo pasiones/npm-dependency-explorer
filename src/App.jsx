@@ -12,7 +12,7 @@ const App = () => {
         <DependenciesGraph filter={filter}/>
       </div>
       <div className="search-bar-and-list-container">
-        <SearchBar value={filter} onChange={setFilter}/>
+        <SearchBar onApplyFilter={setFilter}/>
         <div className="dependency-list">
           {/* <DependenciesList /> */}
         </div>

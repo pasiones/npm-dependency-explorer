@@ -1,14 +1,24 @@
-import React from 'react';
+import React, { useState } from 'react';
 
-const SearchBar = ({ value, onChange }) => {
+const SearchBar = ({ onApplyFilter }) => {
+  const [inputValue, setInputValue] = useState('');
+
+  const handleApplyFilter = () => {
+    onApplyFilter(inputValue);
+  };
+
   return (
-    <input
-      type="text"
-      placeholder="Search for dependencies..."
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="search-bar"
-    />
+    <div className="search-bar-container">
+      <input
+        type="text"
+        placeholder="Search for dependencies..."
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        className="search-bar"
+      />
+      <button 
+      onClick={handleApplyFilter} className='search-button'>Search</button>
+    </div>
   );
 };
 

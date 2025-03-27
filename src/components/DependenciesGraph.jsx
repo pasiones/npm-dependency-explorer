@@ -47,7 +47,7 @@ const DependencyGraph = ({ filter }) => {
         const svg = d3.select('#graph');
         const width = +svg.attr('width');
         const height = +svg.attr('height');
-        
+
         svg.selectAll('*').remove();
 
         // Define arrow markers for graph links
@@ -86,7 +86,7 @@ const DependencyGraph = ({ filter }) => {
           .data(nodes)
           .enter().append('circle')
           .attr('r', 10)
-          .attr('fill', d => d.id.toLowerCase().includes(filter.toLowerCase()) ? 'red' : '#69b3a2')
+          .attr('fill', '#69b3a2')
           .call(d3.drag()
             .on('start', dragstarted)
             .on('drag', dragged)
@@ -142,6 +142,23 @@ const DependencyGraph = ({ filter }) => {
           d.fx = null;
           d.fy = null;
         }
+
+        // Function to update node colors based on filter
+        function updateNodeColors() {
+          if (filter) {
+            node.attr('fill', d => d.id.toLowerCase().includes(filter.toLowerCase()) ? 'red' : '#69b3a2')
+              .attr('opacity', d => d.id.toLowerCase().includes(filter.toLowerCase()) ? 1 : 0.2);
+            label.attr('opacity', d => d.id.toLowerCase().includes(filter.toLowerCase()) ? 1 : 0.2);
+          } else {
+            node.attr('fill', '#69b3a2')
+              .attr('opacity', 1);
+            label.attr('opacity', 1);
+          }
+        }
+
+        // Call updateNodeColors initially and whenever filter changes
+        updateNodeColors();
+
       } catch (error) {
         console.error('Error reading JSON file:', error);
       }
@@ -151,7 +168,7 @@ const DependencyGraph = ({ filter }) => {
   }, [filter]);
 
   return (
-      <svg id="graph"></svg>
+    <svg id="graph"></svg>
   );
 };
 
