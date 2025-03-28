@@ -12,17 +12,32 @@ async function readJsonFile(filePath) {
 function createNodesAndLinks(data) {
   const nodes = new Map();
   const links = [];
+  const queue = [];
 
-  nodes.set(data.name, { id: data.name });
+  // Add root node
+  nodes.set(data.name, { id: data.name, isRoot: true });
+  queue.push({ name: data.name, dependencies: data.dependencies });
 
-  for (const [dep, details] of Object.entries(data.dependencies)) {
-    nodes.set(dep, { id: dep });
-    links.push({ source: data.name, target: dep });
+  // Process all dependencies recursively
+  while (queue.length > 0) {
+    const current = queue.shift();
+    const currentName = current.name;
+    const currentDeps = current.dependencies;
 
-    if (details.dependencies) {
-      for (const subDep of Object.keys(details.dependencies)) {
-        nodes.set(subDep, { id: subDep });
-        links.push({ source: dep, target: subDep });
+    if (!currentDeps) continue;
+
+    for (const [dep, details] of Object.entries(currentDeps)) {
+      // Add node if it doesn't exist
+      if (!nodes.has(dep)) {
+        nodes.set(dep, { id: dep, isRoot: false });
+      }
+
+      // Add link
+      links.push({ source: currentName, target: dep });
+
+      // Add to queue to process its dependencies
+      if (details.dependencies) {
+        queue.push({ name: dep, dependencies: details.dependencies });
       }
     }
   }
@@ -194,7 +209,6 @@ const DependencyGraph = ({ filter }) => {
       labels
         .attr('opacity', d => {
           // Always keep root label visible regardless of filter
-          if (d.id === rootNodeId) return 1;
           return d.id.toLowerCase().includes(filter.toLowerCase()) ? 1 : 0.2;
         });
     } else {
