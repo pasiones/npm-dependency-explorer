@@ -47,6 +47,7 @@ function createNodesAndLinks(data) {
 
 const DependencyGraph = ({ filter }) => {
   const simulationRef = useRef(null);
+  const linksRef = useRef(null);
   const nodesRef = useRef(null);
   const labelsRef = useRef(null);
   const zoomRef = useRef(null);
@@ -87,8 +88,8 @@ const DependencyGraph = ({ filter }) => {
           .attr('refX', 13)
           .attr('refY', 0)
           .attr('orient', 'auto')
-          .attr('markerWidth', 8)
-          .attr('markerHeight', 9)
+          .attr('markerWidth', 6)
+          .attr('markerHeight', 8)
           .attr('xoverflow', 'visible')
           .append('svg:path')
           .attr('d', 'M 0,-5 L 10 ,0 L 0,5')
@@ -109,6 +110,8 @@ const DependencyGraph = ({ filter }) => {
           .attr('stroke', '#999')
           .attr('stroke-width', 2)
           .attr('marker-end', 'url(#arrowhead)');
+
+        linksRef.current = link;
 
         // Draw nodes with root node differentiation
         const node = container.append('g')
@@ -189,34 +192,144 @@ const DependencyGraph = ({ filter }) => {
   }, []);
 
   useEffect(() => {
-    if (nodesRef.current && labelsRef.current) {
-      updateNodeColors(nodesRef.current, labelsRef.current, filter, rootNodeIdRef.current);
+    if (nodesRef.current && labelsRef.current && linksRef.current) {
+      updateNodeColors(linksRef.current, nodesRef.current, labelsRef.current, filter, rootNodeIdRef.current);
     }
   }, [filter]);
 
-  function updateNodeColors(nodes, labels, filter, rootNodeId) {
+  function getHighlightedPaths(linksData, nodesData, filter, rootNodeId) {
+    // Build a map of child to parent relationships
+    const childToParents = new Map();
+    // Build a map of parent to children relationships
+    const parentToChildren = new Map();
+    // Map to store all links
+    const linkMap = new Map();
+
+    // Populate the maps
+    linksData.forEach(link => {
+      // Child to parents
+      if (!childToParents.has(link.target.id)) {
+        childToParents.set(link.target.id, new Set());
+      }
+      childToParents.get(link.target.id).add(link.source.id);
+
+      // Parent to children
+      if (!parentToChildren.has(link.source.id)) {
+        parentToChildren.set(link.source.id, new Set());
+      }
+      parentToChildren.get(link.source.id).add(link.target.id);
+
+      // Store the link
+      const linkKey = `${link.source.id}->${link.target.id}`;
+      linkMap.set(linkKey, link);
+    });
+
+    // Find all nodes that match the filter
+    const matchingNodes = nodesData.filter(d =>
+      d.id.toLowerCase().includes(filter.toLowerCase())
+    );
+
+    // Find all paths from matching nodes to root
+    const highlightedNodes = new Set();
+    const highlightedLinks = new Set();
+
+    // Function to find all paths from a node to root
+    function findAllPaths(nodeId, currentPath = []) {
+      const paths = [];
+
+      // If we've reached the root, return the current path
+      if (nodeId === rootNodeId) {
+        return [[...currentPath, nodeId]];
+      }
+
+      // Prevent cycles
+      if (currentPath.includes(nodeId)) {
+        return paths;
+      }
+
+      // Get all parents of this node
+      const parents = childToParents.get(nodeId) || new Set();
+
+      // For each parent, find paths from parent to root
+      parents.forEach(parentId => {
+        const parentPaths = findAllPaths(parentId, [...currentPath, nodeId]);
+        paths.push(...parentPaths);
+      });
+
+      return paths;
+    }
+
+    // For each matching node, find all paths to root
+    matchingNodes.forEach(node => {
+      const allPaths = findAllPaths(node.id);
+
+      // Add all nodes and links in these paths
+      allPaths.forEach(path => {
+        // Add nodes in path
+        path.forEach(nodeId => highlightedNodes.add(nodeId));
+
+        // Add links between nodes in path
+        for (let i = 0; i < path.length - 1; i++) {
+          const source = path[i + 1]; // parent
+          const target = path[i];   // child
+          const linkKey = `${source}->${target}`;
+          const link = linkMap.get(linkKey);
+          if (link) highlightedLinks.add(link);
+        }
+      });
+    });
+
+    // Always include the root node
+    highlightedNodes.add(rootNodeId);
+
+    return { highlightedNodes, highlightedLinks };
+  }
+
+  function updateNodeColors(links, nodes, labels, filter, rootNodeId) {
+    // First reset all nodes and links to default state
+    links
+      .attr('opacity', 1)
+      .attr('stroke', '#999');
+
+    nodes
+      .attr('fill', d => d.id === rootNodeId ? '#FF6B6B' : '#69b3a2')
+      .attr('stroke', d => d.id === rootNodeId ? '#CC4C4C' : '#458b74')
+      .attr('opacity', 1);
+
+    labels
+      .attr('opacity', 1);
+
+    // Only apply new filter if one exists
     if (filter) {
+      const { highlightedNodes, highlightedLinks } = getHighlightedPaths(
+        links.data(),
+        nodes.data(),
+        filter,
+        rootNodeId
+      );
+
+      // Apply new filter styles
+      links
+        .attr('opacity', d => highlightedLinks.has(d) ? 1 : 0.2)
+        .attr('stroke', d => highlightedLinks.has(d) ? '#ff0000' : '#999');
+
       nodes
         .attr('fill', d => {
-          // Always keep root node red regardless of filter
           if (d.id === rootNodeId) return '#FF6B6B';
-          return d.id.toLowerCase().includes(filter.toLowerCase()) ? 'red' : '#69b3a2';
+          if (d.id.toLowerCase().includes(filter.toLowerCase())) return '#FFFF00';
+          if (highlightedNodes.has(d.id)) return 'red';
+          return '#69b3a2';
         })
-        .attr('opacity', d => {
-          return d.id.toLowerCase().includes(filter.toLowerCase()) ? 1 : 0.2;
-        });
+        .attr('stroke', d => {
+          if (d.id === rootNodeId) return '#CC4C4C';
+          if (d.id.toLowerCase().includes(filter.toLowerCase())) return '#FFD700';
+          if (highlightedNodes.has(d.id)) return '#ff0000';
+          return '#458b74';
+        })
+        .attr('opacity', d => highlightedNodes.has(d.id) ? 1 : 0.2);
 
       labels
-        .attr('opacity', d => {
-          // Always keep root label visible regardless of filter
-          return d.id.toLowerCase().includes(filter.toLowerCase()) ? 1 : 0.2;
-        });
-    } else {
-      nodes
-        .attr('fill', d => d.id === rootNodeId ? '#FF6B6B' : '#69b3a2')  // Restore root color
-        .attr('opacity', 1);
-      labels
-        .attr('opacity', 1);
+        .attr('opacity', d => highlightedNodes.has(d.id) ? 1 : 0.2);
     }
   }
 
