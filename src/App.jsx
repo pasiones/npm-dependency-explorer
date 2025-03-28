@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import DependenciesGraph from './components/DependenciesGraph';
-// import DependenciesList from './components/DependenciesList';
+import DependencyGraph from './components/DependencyGraph';
 import SearchBar from './components/SearchBar';
 
 const App = () => {
@@ -9,12 +8,12 @@ const App = () => {
   return (
     <div className="App">
       <div className="graph-container">
-        <DependenciesGraph filter={filter}/>
+        <DependencyGraph filter={filter}/>
       </div>
       <div className="search-bar-and-list-container">
         <SearchBar onApplyFilter={setFilter}/>
         <div className="dependency-list">
-          {/* <DependenciesList /> */}
+
         </div>
       </div>
     </div>

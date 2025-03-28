@@ -1,7 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 
-// Function to read the JSON file
 async function readJsonFile(filePath) {
   const response = await fetch(filePath);
   if (!response.ok) {
@@ -10,20 +9,16 @@ async function readJsonFile(filePath) {
   return response.json();
 }
 
-// Function to create nodes and links from dependencies
 function createNodesAndLinks(data) {
   const nodes = new Map();
   const links = [];
 
-  // Add the main project as a node
   nodes.set(data.name, { id: data.name });
 
-  // Add dependencies as nodes and links
   for (const [dep, details] of Object.entries(data.dependencies)) {
     nodes.set(dep, { id: dep });
     links.push({ source: data.name, target: dep });
 
-    // Add sub-dependencies as nodes and links
     if (details.dependencies) {
       for (const subDep of Object.keys(details.dependencies)) {
         nodes.set(subDep, { id: subDep });
@@ -35,35 +30,42 @@ function createNodesAndLinks(data) {
   return { nodes: Array.from(nodes.values()), links };
 }
 
-
 const DependencyGraph = ({ filter }) => {
+  const simulationRef = useRef(null);
+  const nodesRef = useRef(null);
+  const labelsRef = useRef(null);
+  const zoomRef = useRef(null);
+  const rootNodeIdRef = useRef(null);
+
   useEffect(() => {
-    async function createGraph() {
+    async function initializeGraph() {
       try {
         const data = await readJsonFile('./dependencies.json');
         const { nodes, links } = createNodesAndLinks(data);
 
-        // Create the SVG container
+        // Store the root node ID
+        rootNodeIdRef.current = data.name;
+
         const svg = d3.select('#graph');
         const width = +svg.attr('width') || window.innerWidth;
         const height = +svg.attr('height') || window.innerHeight;
 
         svg.selectAll('*').remove();
 
-        // Add a group element to hold the graph
         const container = svg.append('g');
 
-        // Define zoom behavior
         const zoom = d3.zoom()
-          .scaleExtent([0.5, 2]) // Set zoom scale limits
+          .scaleExtent([0.1, 8])
           .on('zoom', (event) => {
             container.attr('transform', event.transform);
           });
 
-        // Apply zoom behavior to the SVG
         svg.call(zoom);
+        zoomRef.current = zoom;
 
-        // Define arrow markers for graph links
+        // Reset zoom to initial position
+        svg.call(zoom.transform, d3.zoomIdentity);
+
         container.append('defs').append('marker')
           .attr('id', 'arrowhead')
           .attr('viewBox', '-0 -5 10 10')
@@ -78,13 +80,13 @@ const DependencyGraph = ({ filter }) => {
           .attr('fill', '#999')
           .style('stroke', 'none');
 
-        // Create the simulation
         const simulation = d3.forceSimulation(nodes)
           .force('link', d3.forceLink(links).id(d => d.id).distance(200))
           .force('charge', d3.forceManyBody())
           .force('center', d3.forceCenter(width / 2, height / 2));
 
-        // Draw the links
+        simulationRef.current = simulation;
+
         const link = container.append('g')
           .selectAll('line')
           .data(links)
@@ -93,36 +95,39 @@ const DependencyGraph = ({ filter }) => {
           .attr('stroke-width', 2)
           .attr('marker-end', 'url(#arrowhead)');
 
-        // Draw the nodes
+        // Draw nodes with root node differentiation
         const node = container.append('g')
           .selectAll('circle')
           .data(nodes)
           .enter().append('circle')
-          .attr('r', 10)
-          .attr('fill', '#69b3a2')
+          .attr('r', d => d.id === data.name ? 16 : 10) // Bigger for root
+          .attr('fill', d => d.id === data.name ? '#FF6B6B' : '#69b3a2') // Red for root
+          .attr('stroke', d => d.id === data.name ? '#CC4C4C' : '#458b74')
+          .attr('stroke-width', d => d.id === data.name ? 2 : 1)
           .call(d3.drag()
             .on('start', dragstarted)
             .on('drag', dragged)
             .on('end', dragended));
 
-        // Add labels to the nodes
+        nodesRef.current = node;
+
+        // Draw labels with root differentiation
         const label = container.append('g')
           .selectAll('text')
           .data(nodes)
           .enter().append('text')
-          .attr('x', 12)
+          .attr('x', d => d.id === data.name ? 20 : 12) // Offset for root
           .attr('y', 3)
           .text(d => d.id)
-          .attr('font-size', 12);
+          .attr('font-size', d => d.id === data.name ? 14 : 12) // Bigger for root
+          .attr('font-weight', d => d.id === data.name ? 'bold' : 'normal');
 
-        // Detect the current color scheme
+        labelsRef.current = label;
+
         const isLightMode = window.matchMedia('(prefers-color-scheme: light)').matches;
         const fontColor = isLightMode ? '#242424' : '#ffffff';
-
-        // Apply the font color to the text elements
         d3.selectAll('text').attr('fill', fontColor);
 
-        // Update the simulation on each tick
         simulation.on('tick', () => {
           link
             .attr('x1', d => d.source.x)
@@ -135,11 +140,10 @@ const DependencyGraph = ({ filter }) => {
             .attr('cy', d => d.y);
 
           label
-            .attr('x', d => d.x + 12)
+            .attr('x', d => d.x + + (d.id === data.name ? 20 : 12))
             .attr('y', d => d.y + 3);
         });
 
-        // Drag functions
         function dragstarted(event, d) {
           if (!event.active) simulation.alphaTarget(0.3).restart();
           d.fx = d.x;
@@ -157,33 +161,52 @@ const DependencyGraph = ({ filter }) => {
           d.fy = null;
         }
 
-        // Function to update node colors based on filter
-        function updateNodeColors() {
-          if (filter) {
-            node.attr('fill', d => d.id.toLowerCase().includes(filter.toLowerCase()) ? 'red' : '#69b3a2')
-              .attr('opacity', d => d.id.toLowerCase().includes(filter.toLowerCase()) ? 1 : 0.2);
-            label.attr('opacity', d => d.id.toLowerCase().includes(filter.toLowerCase()) ? 1 : 0.2);
-          } else {
-            node.attr('fill', '#69b3a2')
-              .attr('opacity', 1);
-            label.attr('opacity', 1);
-          }
-        }
-
-        // Call updateNodeColors initially and whenever filter changes
-        updateNodeColors();
-
       } catch (error) {
         console.error('Error reading JSON file:', error);
       }
     }
 
-    createGraph();
+    initializeGraph();
+
+    if (simulationRef.current) {
+      simulationRef.current.stop();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (nodesRef.current && labelsRef.current) {
+      updateNodeColors(nodesRef.current, labelsRef.current, filter, rootNodeIdRef.current);
+    }
   }, [filter]);
 
-  return (
-    <svg id="graph"></svg>
-  );
+  function updateNodeColors(nodes, labels, filter, rootNodeId) {
+    if (filter) {
+      nodes
+        .attr('fill', d => {
+          // Always keep root node red regardless of filter
+          if (d.id === rootNodeId) return '#FF6B6B';
+          return d.id.toLowerCase().includes(filter.toLowerCase()) ? 'red' : '#69b3a2';
+        })
+        .attr('opacity', d => {
+          return d.id.toLowerCase().includes(filter.toLowerCase()) ? 1 : 0.2;
+        });
+
+      labels
+        .attr('opacity', d => {
+          // Always keep root label visible regardless of filter
+          if (d.id === rootNodeId) return 1;
+          return d.id.toLowerCase().includes(filter.toLowerCase()) ? 1 : 0.2;
+        });
+    } else {
+      nodes
+        .attr('fill', d => d.id === rootNodeId ? '#FF6B6B' : '#69b3a2')  // Restore root color
+        .attr('opacity', 1);
+      labels
+        .attr('opacity', 1);
+    }
+  }
+
+  return <svg id="graph"></svg>;
 };
 
-export default DependencyGraph
+export default DependencyGraph;
