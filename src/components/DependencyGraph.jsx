@@ -45,7 +45,7 @@ function createNodesAndLinks(data) {
   return { nodes: Array.from(nodes.values()), links };
 }
 
-const DependencyGraph = ({ filter }) => {
+const DependencyGraph = ({ filter, onNodeClick }) => {
   const simulationRef = useRef(null);
   const linksRef = useRef(null);
   const nodesRef = useRef(null);
@@ -125,7 +125,14 @@ const DependencyGraph = ({ filter }) => {
           .call(d3.drag()
             .on('start', dragstarted)
             .on('drag', dragged)
-            .on('end', dragended));
+            .on('end', dragended))
+          .on('click', async (event, d) => {
+            // Fetch package size and send it to the parent component
+            const packageInfo = await getPackageSize(d.id);
+            if (packageInfo) {
+              onNodeClick(packageInfo);
+            }
+          });
 
         nodesRef.current = node;
 
@@ -333,6 +340,19 @@ const DependencyGraph = ({ filter }) => {
     }
   }
 
+  async function getPackageSize(packageName) {
+    const response = await fetch(`https://bundlephobia.com/api/size?package=${packageName}`);
+    if (!response.ok) {
+      console.log(`Failed to fetch size for ${packageName}`);
+      return null;
+    }
+    const data = await response.json();
+    return {
+      name: packageName,
+      size: data.size,
+      gzip: data.gzip
+    };
+  }
   return <svg id="graph"></svg>;
 };
 
