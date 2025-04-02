@@ -7,10 +7,11 @@ const InfoList = ({ packageInfo }) => {
 
   return (
     <div>
-      <h3>Package Information</h3>
+      <h4>Package Information</h4>
       <p><strong>Name:</strong> {packageInfo.name}</p>
       <p><strong>Size:</strong> {packageInfo.size} bytes</p>
       <p><strong>Gzip Size:</strong> {packageInfo.gzip} bytes</p>
+      <p><strong>Version:</strong> {packageInfo.version}</p>
     </div>
   );
 };

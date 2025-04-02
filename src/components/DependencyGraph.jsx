@@ -15,7 +15,7 @@ function createNodesAndLinks(data) {
   const queue = [];
 
   // Add root node
-  nodes.set(data.name, { id: data.name, isRoot: true });
+  nodes.set(data.name, { id: data.name, isRoot: true , version: data.version || 'Unknown' });
   queue.push({ name: data.name, dependencies: data.dependencies });
 
   // Process all dependencies recursively
@@ -29,7 +29,11 @@ function createNodesAndLinks(data) {
     for (const [dep, details] of Object.entries(currentDeps)) {
       // Add node if it doesn't exist
       if (!nodes.has(dep)) {
-        nodes.set(dep, { id: dep, isRoot: false });
+        nodes.set(dep, { 
+          id: dep, 
+          isRoot: false, 
+          version: details.version || 'Unknown', 
+        });
       }
 
       // Add link
@@ -128,7 +132,7 @@ const DependencyGraph = ({ filter, onNodeClick }) => {
             .on('end', dragended))
           .on('click', async (event, d) => {
             // Fetch package size and send it to the parent component
-            const packageInfo = await getPackageSize(d.id);
+            const packageInfo = await getPackageSize(d.id, nodes);
             if (packageInfo) {
               onNodeClick(packageInfo);
             }
@@ -233,7 +237,7 @@ const DependencyGraph = ({ filter, onNodeClick }) => {
 
     // Find all nodes that match the filter
     const matchingNodes = nodesData.filter(d =>
-      d.id.toLowerCase().includes(filter.toLowerCase())
+      d.id.toLowerCase() == filter.toLowerCase()
     );
 
     // Find all paths from matching nodes to root
@@ -323,13 +327,13 @@ const DependencyGraph = ({ filter, onNodeClick }) => {
       nodes
         .attr('fill', d => {
           if (d.id === rootNodeId) return '#FF6B6B';
-          if (d.id.toLowerCase().includes(filter.toLowerCase())) return '#FFFF00';
+          if (d.id.toLowerCase() == filter.toLowerCase()) return '#FFFF00';
           if (highlightedNodes.has(d.id)) return 'red';
           return '#69b3a2';
         })
         .attr('stroke', d => {
           if (d.id === rootNodeId) return '#CC4C4C';
-          if (d.id.toLowerCase().includes(filter.toLowerCase())) return '#FFD700';
+          if (d.id.toLowerCase() == filter.toLowerCase()) return '#FFD700';
           if (highlightedNodes.has(d.id)) return '#ff0000';
           return '#458b74';
         })
@@ -340,17 +344,25 @@ const DependencyGraph = ({ filter, onNodeClick }) => {
     }
   }
 
-  async function getPackageSize(packageName) {
+  async function getPackageSize(packageName, nodes) {
     const response = await fetch(`https://bundlephobia.com/api/size?package=${packageName}`);
-    if (!response.ok) {
-      console.log(`Failed to fetch size for ${packageName}`);
+
+    const node = nodes.find(node => node.id === packageName);
+    if (!node) {
+      console.log(`Package ${packageName} not found in the graph`);
       return null;
     }
+    if (!response.ok) {
+      console.log(`Failed to fetch size for ${packageName}`);
+      return null
+    }
+  
     const data = await response.json();
     return {
       name: packageName,
       size: data.size,
-      gzip: data.gzip
+      gzip: data.gzip,
+      version: node.version,
     };
   }
   return <svg id="graph"></svg>;
