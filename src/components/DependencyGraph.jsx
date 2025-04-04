@@ -15,7 +15,7 @@ function createNodesAndLinks(data) {
   const queue = [];
 
   // Add root node
-  nodes.set(data.name, { id: data.name, isRoot: true , version: data.version || 'Unknown' });
+  nodes.set(data.name, { id: data.name, isRoot: true, version: data.version || 'Unknown' });
   queue.push({ name: data.name, dependencies: data.dependencies });
 
   // Process all dependencies recursively
@@ -29,10 +29,10 @@ function createNodesAndLinks(data) {
     for (const [dep, details] of Object.entries(currentDeps)) {
       // Add node if it doesn't exist
       if (!nodes.has(dep)) {
-        nodes.set(dep, { 
-          id: dep, 
-          isRoot: false, 
-          version: details.version || 'Unknown', 
+        nodes.set(dep, {
+          id: dep,
+          isRoot: false,
+          version: details.version || 'Unknown',
         });
       }
 
@@ -205,6 +205,11 @@ const DependencyGraph = ({ filter, onNodeClick }) => {
   useEffect(() => {
     if (nodesRef.current && labelsRef.current && linksRef.current) {
       updateNodeColors(linksRef.current, nodesRef.current, labelsRef.current, filter, rootNodeIdRef.current);
+      getPackageSize(filter, nodesRef.current.data()).then(packageInfo => {
+        if (packageInfo) {
+          onNodeClick(packageInfo);
+        }
+      });
     }
   }, [filter]);
 
@@ -356,7 +361,7 @@ const DependencyGraph = ({ filter, onNodeClick }) => {
       console.log(`Failed to fetch size for ${packageName}`);
       return null
     }
-  
+
     const data = await response.json();
     return {
       name: packageName,
