@@ -132,7 +132,7 @@ const DependencyGraph = ({ filter, onNodeClick }) => {
             .on('end', dragended))
           .on('click', async (event, d) => {
             // Fetch package size and send it to the parent component
-            const packageInfo = await getPackageSize(d.id, nodes);
+            const packageInfo = await getPackageInfo(d.id, nodes);
             if (packageInfo) {
               onNodeClick(packageInfo);
             }
@@ -205,7 +205,7 @@ const DependencyGraph = ({ filter, onNodeClick }) => {
   useEffect(() => {
     if (nodesRef.current && labelsRef.current && linksRef.current) {
       updateNodeColors(linksRef.current, nodesRef.current, labelsRef.current, filter, rootNodeIdRef.current);
-      getPackageSize(filter, nodesRef.current.data()).then(packageInfo => {
+      getPackageInfo(filter, nodesRef.current.data()).then(packageInfo => {
         if (packageInfo) {
           onNodeClick(packageInfo);
         }
@@ -349,24 +349,24 @@ const DependencyGraph = ({ filter, onNodeClick }) => {
     }
   }
 
-  async function getPackageSize(packageName, nodes) {
-    const response = await fetch(`https://bundlephobia.com/api/size?package=${packageName}`);
+  async function getPackageInfo(packageName, nodes) {
+    // const response = await fetch(`https://bundlephobia.com/api/size?package=${packageName}`);
 
     const node = nodes.find(node => node.id === packageName);
     if (!node) {
       console.log(`Package ${packageName} not found in the graph`);
       return null;
     }
-    if (!response.ok) {
-      console.log(`Failed to fetch size for ${packageName}`);
-      return null
-    }
+    // if (!response.ok) {
+    //   console.log(`Failed to fetch size for ${packageName}`);
+    //   return null
+    // }
 
-    const data = await response.json();
+    // const data = await response.json();
     return {
       name: packageName,
-      size: data.size,
-      gzip: data.gzip,
+      //size: data.size,
+      //gzip: data.gzip,
       version: node.version,
     };
   }
